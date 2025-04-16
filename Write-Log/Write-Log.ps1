@@ -96,10 +96,12 @@ Function Write-Log {
     #>
     [CmdletBinding()]
     Param (
-        [Parameter( Mandatory,
-                    ValueFromPipeline,
-                    ValueFromPipelineByPropertyName)]
-        [AllowEmptyCollection()]
+        [Parameter(
+            Mandatory,
+            ValueFromPipeline,
+            ValueFromPipelineByPropertyName
+        )]
+        [ValidateNotNullOrWhiteSpace()]
         [Alias('Text')]
         [String[]]$Message,
         [Parameter()]
@@ -110,28 +112,28 @@ Function Write-Log {
         [String]$Source = [IO.Path]::GetFileNameWithoutExtension((Get-Variable -Name 'MyInvocation' -Scope 1 -ErrorAction 'SilentlyContinue').Value.MyCommand.Name) ?? 'Unknown',
         [Parameter()]
         [ValidateSet('CMTrace', 'Legacy')]
-        [String]$LogType = ($IsWindows) ? 'CMTrace' : 'Legacy',
+        [String]$LogType = (Get-Command -Name 'cmtrace.exe' -ErrorAction SilentlyContinue) ? 'CMTrace' : 'Legacy',
         [Parameter()]
-        [ValidateNotNullorEmpty()]
-        [String]$LogFileDirectory = $env:TMPDIR,
+        [ValidateNotNullOrWhiteSpace()]
+        [String]$LogFileDirectory,
         [Parameter()]
-        [ValidateNotNullorEmpty()]
-        [String]$LogFileName = [IO.Path]::GetFileNameWithoutExtension([IO.Path]::GetRandomFileName()) + '.log',
+        [ValidateNotNullOrWhiteSpace()]
+        [String]$LogFileName = [IO.Path]::GetFileNameWithoutExtension([IO.Path]::GetRandomFileName()),
         [Parameter()]
-        [ValidateNotNullorEmpty()]
+        [ValidateNotNullOrWhiteSpace()]
         [Boolean]$AppendToLogFile = $true,
         [Parameter()]
-        [ValidateNotNullorEmpty()]
+        [ValidateNotNullOrWhiteSpace()]
         [Int]$MaxLogHistory = 5,
         [Parameter()]
-        [ValidateNotNullorEmpty()]
+        [ValidateNotNullOrWhiteSpace()]
         [Decimal]$MaxLogFileSizeMB = 10.0,
         [Parameter()]
         [ValidateNotNullorEmpty()]
         [Boolean]$ContinueOnError = $true,
         [Parameter()]
         [ValidateNotNullorEmpty()]
-        [Boolean]$WriteHost = $true,
+        [Boolean]$WriteHost = $false,
         [Parameter()]
         [Switch]$PassThru = $false,
         [Parameter()]
@@ -143,6 +145,20 @@ Function Write-Log {
     Begin {
         ## Get the name of this function, used only if an error occurs writing to the log file
         [String]${CmdletName} = $PSCmdlet.MyInvocation.MyCommand.Name
+
+        # Set LogFileDir to Temporary directory if not specified
+        $LogFileDirectory ??= {
+            if($IsWindows){
+                $env:TEMP
+            } elseif ($IsMacOS){
+                $env:TMPDIR
+            } elseif ($IsLinux){
+                '/var/tmp'
+            }
+        }
+
+        # Ensure we have an extension for the log file name, default to .log
+        $LogFileName = (Split-Path $LogFileName -Extension) ? $LogFileName : "${LogFileName}.log"
 
         ## Logging Variables
         #  Log file date/time
@@ -221,11 +237,6 @@ Function Write-Log {
         If ($DisableLogging) {
             Return
         }
-        ## Exit function function if it is an [Initialization] message and the toolkit has been relaunched
-        If (($AsyncToolkitLaunch) -and ($ScriptSection -eq 'Initialization')) {
-            [Boolean]$ExitLoggingFunction = $true; Return
-        }
-
         ## Create the directory where the log file will be saved
         If (-not (Test-Path -LiteralPath $LogFileDirectory -PathType 'Container')) {
             Try {
