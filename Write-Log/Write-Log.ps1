@@ -1,154 +1,164 @@
 #region Function Write-Log
 Function Write-Log {
     <#
-.SYNOPSIS
+        .SYNOPSIS
 
-Write messages to a log file in CMTrace.exe compatible format or Legacy text file format.
+        Write messages to a log file in CMTrace.exe compatible format or Legacy text file format.
 
-.DESCRIPTION
+        .DESCRIPTION
 
-Write messages to a log file in CMTrace.exe compatible format or Legacy text file format and optionally display in the console.
+        Write messages to a log file in CMTrace.exe compatible format or Legacy text file format and optionally display in the console.
 
-.PARAMETER Message
+        .PARAMETER Message
 
-The message to write to the log file or output to the console.
+        The message to write to the log file or output to the console.
 
-.PARAMETER Severity
+        .PARAMETER Severity
 
-Defines message type. When writing to console or CMTrace.exe log format, it allows highlighting of message type.
-Options: 1 = Information (default), 2 = Warning (highlighted in yellow), 3 = Error (highlighted in red)
+        Defines message type. When writing to console or CMTrace.exe log format, it allows highlighting of message type.
+        Options: 1 = Information (default), 2 = Warning (highlighted in yellow), 3 = Error (highlighted in red)
 
-.PARAMETER Source
+        .PARAMETER Source
 
-The source of the message being logged.
+        The source of the message being logged.
 
-.PARAMETER ScriptSection
+        .PARAMETER LogType
 
-The heading for the portion of the script that is being executed. Default is: $script:installPhase.
+        Choose whether to write a CMTrace.exe compatible log file or a Legacy text log file.
 
-.PARAMETER LogType
+        .PARAMETER LogFileDirectory
 
-Choose whether to write a CMTrace.exe compatible log file or a Legacy text log file.
+        Set the directory where the log file will be saved.
 
-.PARAMETER LogFileDirectory
+        .PARAMETER LogFileName
 
-Set the directory where the log file will be saved.
+        Set the name of the log file.
 
-.PARAMETER LogFileName
+        .PARAMETER AppendToLogFile
 
-Set the name of the log file.
+        Append to existing log file rather than creating a new one upon toolkit initialization. Default value is defined in AppDeployToolkitConfig.xml.
 
-.PARAMETER AppendToLogFile
+        .PARAMETER MaxLogHistory
 
-Append to existing log file rather than creating a new one upon toolkit initialization. Default value is defined in AppDeployToolkitConfig.xml.
+        Maximum number of previous log files to retain. Default value is defined in AppDeployToolkitConfig.xml.
 
-.PARAMETER MaxLogHistory
+        .PARAMETER MaxLogFileSizeMB
 
-Maximum number of previous log files to retain. Default value is defined in AppDeployToolkitConfig.xml.
+        Maximum file size limit for log file in megabytes (MB). Default value is defined in AppDeployToolkitConfig.xml.
 
-.PARAMETER MaxLogFileSizeMB
+        .PARAMETER ContinueOnError
 
-Maximum file size limit for log file in megabytes (MB). Default value is defined in AppDeployToolkitConfig.xml.
+        Suppress writing log message to console on failure to write message to log file. Default is: $true.
 
-.PARAMETER ContinueOnError
+        .PARAMETER WriteHost
 
-Suppress writing log message to console on failure to write message to log file. Default is: $true.
+        Write the log message to the console.
 
-.PARAMETER WriteHost
+        .PARAMETER PassThru
 
-Write the log message to the console.
+        Return the message that was passed to the function
 
-.PARAMETER PassThru
+        .PARAMETER DebugMessage
 
-Return the message that was passed to the function
+        Specifies that the message is a debug message. Debug messages only get logged if -LogDebugMessage is set to $true.
 
-.PARAMETER DebugMessage
+        .PARAMETER LogDebugMessage
 
-Specifies that the message is a debug message. Debug messages only get logged if -LogDebugMessage is set to $true.
+        Debug messages only get logged if this parameter is set to $true in the config XML file.
 
-.PARAMETER LogDebugMessage
+        .INPUTS
 
-Debug messages only get logged if this parameter is set to $true in the config XML file.
+        System.String
 
-.INPUTS
+        The message to write to the log file or output to the console.
 
-System.String
+        .OUTPUTS
 
-The message to write to the log file or output to the console.
+        None
 
-.OUTPUTS
+        This function does not generate any output.
 
-None
+        .EXAMPLE
 
-This function does not generate any output.
+        Write-Log -Message "Installing patch MS15-031" -Source 'Add-Patch' -LogType 'CMTrace'
 
-.EXAMPLE
+        .EXAMPLE
 
-Write-Log -Message "Installing patch MS15-031" -Source 'Add-Patch' -LogType 'CMTrace'
+        Write-Log -Message "Script is running on Windows 8" -Source 'Test-ValidOS' -LogType 'Legacy'
 
-.EXAMPLE
+        .EXAMPLE
 
-Write-Log -Message "Script is running on Windows 8" -Source 'Test-ValidOS' -LogType 'Legacy'
+        Write-Log -Message "Log only message" -WriteHost $false
 
-.EXAMPLE
+        .NOTES
 
-Write-Log -Message "Log only message" -WriteHost $false
-
-.NOTES
-
-.LINK
-https://psappdeploytoolkit.com
-#>
+        Taken from PSAppDeployToolkit v3.10.2. Modified to remove PSADT dependencies and to work cross-platform.
+    #>
     [CmdletBinding()]
     Param (
-        [Parameter( Mandatory,
-                    Position = 0,
-                    ValueFromPipeline,
-                    ValueFromPipelineByPropertyName)]
-        [AllowEmptyCollection()]
+        [Parameter(
+            Mandatory,
+            ValueFromPipeline,
+            ValueFromPipelineByPropertyName
+        )]
+        [ValidateNotNullOrWhiteSpace()]
         [Alias('Text')]
         [String[]]$Message,
-        [Parameter(Position = 1)]
+        [Parameter()]
         [ValidateRange(0, 3)]
         [Int16]$Severity = 1,
-        [Parameter(Position = 2)]
+        [Parameter()]
         [ValidateNotNull()]
         [String]$Source = [IO.Path]::GetFileNameWithoutExtension((Get-Variable -Name 'MyInvocation' -Scope 1 -ErrorAction 'SilentlyContinue').Value.MyCommand.Name) ?? 'Unknown',
-        [Parameter(Position = 3)]
+        [Parameter()]
         [ValidateSet('CMTrace', 'Legacy')]
-        [String]$LogType = $isWindows ? 'CMTrace' : 'Legacy',
-        [Parameter(Position = 4)]
-        [ValidateNotNullorEmpty()]
-        [String]$LogFileDirectory = $env:TMPDIR,
-        [Parameter(Position = 6)]
-        [ValidateNotNullorEmpty()]
-        [String]$LogFileName = [IO.Path]::GetFileNameWithoutExtension([IO.Path]::GetRandomFileName()) + '.log',
-        [Parameter(Position = 7)]
-        [ValidateNotNullorEmpty()]
+        [String]$LogType = (Get-Command -Name 'cmtrace.exe' -ErrorAction SilentlyContinue) ? 'CMTrace' : 'Legacy',
+        [Parameter()]
+        [ValidateNotNullOrWhiteSpace()]
+        [String]$LogFileDirectory,
+        [Parameter()]
+        [ValidateNotNullOrWhiteSpace()]
+        [String]$LogFileName = [IO.Path]::GetFileNameWithoutExtension([IO.Path]::GetRandomFileName()),
+        [Parameter()]
+        [ValidateNotNullOrWhiteSpace()]
         [Boolean]$AppendToLogFile = $true,
-        [Parameter(Position = 8)]
-        [ValidateNotNullorEmpty()]
+        [Parameter()]
+        [ValidateNotNullOrWhiteSpace()]
         [Int]$MaxLogHistory = 5,
-        [Parameter(Position = 9)]
-        [ValidateNotNullorEmpty()]
+        [Parameter()]
+        [ValidateNotNullOrWhiteSpace()]
         [Decimal]$MaxLogFileSizeMB = 10.0,
-        [Parameter(Position = 10)]
+        [Parameter()]
         [ValidateNotNullorEmpty()]
         [Boolean]$ContinueOnError = $true,
-        [Parameter(Position = 11)]
+        [Parameter()]
         [ValidateNotNullorEmpty()]
-        [Boolean]$WriteHost = $true,
-        [Parameter(Position = 12)]
+        [Boolean]$WriteHost = $false,
+        [Parameter()]
         [Switch]$PassThru = $false,
-        [Parameter(Position = 13)]
+        [Parameter()]
         [Switch]$DebugMessage = $false,
-        [Parameter(Position = 14)]
+        [Parameter()]
         [Boolean]$LogDebugMessage = $false
     )
 
     Begin {
         ## Get the name of this function, used only if an error occurs writing to the log file
         [String]${CmdletName} = $PSCmdlet.MyInvocation.MyCommand.Name
+
+        # Set LogFileDir to Temporary directory if not specified
+        $LogFileDirectory ??= {
+            if($IsWindows){
+                $env:TEMP
+            } elseif ($IsMacOS){
+                $env:TMPDIR
+            } elseif ($IsLinux){
+                '/var/tmp'
+            }
+        }
+
+        # Ensure we have an extension for the log file name, default to .log
+        $LogFileName = (Split-Path $LogFileName -Extension) ? $LogFileName : "${LogFileName}.log"
 
         ## Logging Variables
         #  Log file date/time
@@ -227,11 +237,6 @@ https://psappdeploytoolkit.com
         If ($DisableLogging) {
             Return
         }
-        ## Exit function function if it is an [Initialization] message and the toolkit has been relaunched
-        If (($AsyncToolkitLaunch) -and ($ScriptSection -eq 'Initialization')) {
-            [Boolean]$ExitLoggingFunction = $true; Return
-        }
-
         ## Create the directory where the log file will be saved
         If (-not (Test-Path -LiteralPath $LogFileDirectory -PathType 'Container')) {
             Try {
