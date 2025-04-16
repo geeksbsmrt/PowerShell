@@ -34,21 +34,21 @@ Function Write-Log {
 
         Set the name of the log file.
 
-        .PARAMETER AppendToLogFile
+        .PARAMETER CreateNewLog
 
-        Append to existing log file rather than creating a new one upon toolkit initialization. Default value is defined in AppDeployToolkitConfig.xml.
+        Create a new log upon initialization rather than appending to existing.
 
         .PARAMETER MaxLogHistory
 
-        Maximum number of previous log files to retain. Default value is defined in AppDeployToolkitConfig.xml.
+        Maximum number of previous log files to retain. Default value is 5.
 
         .PARAMETER MaxLogFileSizeMB
 
-        Maximum file size limit for log file in megabytes (MB). Default value is defined in AppDeployToolkitConfig.xml.
+        Maximum file size limit for log file in megabytes (MB). Default value is 10.0.
 
-        .PARAMETER ContinueOnError
+        .PARAMETER ShowErrors
 
-        Suppress writing log message to console on failure to write message to log file. Default is: $true.
+        Display errors when writing to log file fails.
 
         .PARAMETER WriteHost
 
@@ -64,7 +64,7 @@ Function Write-Log {
 
         .PARAMETER LogDebugMessage
 
-        Debug messages only get logged if this parameter is set to $true in the config XML file.
+        Debug messages only get logged if this parameter is set to $true.
 
         .INPUTS
 
@@ -108,7 +108,7 @@ Function Write-Log {
         [ValidateRange(0, 3)]
         [Int16]$Severity = 1,
         [Parameter()]
-        [ValidateNotNull()]
+        [ValidateNotNullOrWhiteSpace()]
         [String]$Source = [IO.Path]::GetFileNameWithoutExtension((Get-Variable -Name 'MyInvocation' -Scope 1 -ErrorAction 'SilentlyContinue').Value.MyCommand.Name) ?? 'Unknown',
         [Parameter()]
         [ValidateSet('CMTrace', 'Legacy')]
@@ -120,8 +120,7 @@ Function Write-Log {
         [ValidateNotNullOrWhiteSpace()]
         [String]$LogFileName = [IO.Path]::GetFileNameWithoutExtension([IO.Path]::GetRandomFileName()),
         [Parameter()]
-        [ValidateNotNullOrWhiteSpace()]
-        [Boolean]$AppendToLogFile = $true,
+        [switch]$CreateNewLog,
         [Parameter()]
         [ValidateNotNullOrWhiteSpace()]
         [Int]$MaxLogHistory = 5,
@@ -129,17 +128,15 @@ Function Write-Log {
         [ValidateNotNullOrWhiteSpace()]
         [Decimal]$MaxLogFileSizeMB = 10.0,
         [Parameter()]
-        [ValidateNotNullorEmpty()]
-        [Boolean]$ContinueOnError = $true,
+        [switch]$ShowErrors,
         [Parameter()]
-        [ValidateNotNullorEmpty()]
-        [Boolean]$WriteHost = $false,
+        [switch]$WriteHost,
         [Parameter()]
-        [Switch]$PassThru = $false,
+        [switch]$PassThru,
         [Parameter()]
-        [Switch]$DebugMessage = $false,
+        [switch]$DebugMessage,
         [Parameter()]
-        [Boolean]$LogDebugMessage = $false
+        [switch]$LogDebugMessage
     )
 
     Begin {
@@ -244,7 +241,7 @@ Function Write-Log {
             } Catch {
                 [Boolean]$ExitLoggingFunction = $true
                 #  If error creating directory, write message to console
-                If (-not $ContinueOnError) {
+                If ($ShowErrors) {
                     Write-Host -Object "[$LogDate $LogTime] [${CmdletName}] $ScriptSection :: Failed to create the log directory [$LogFileDirectory]. `r`n$(Resolve-Error)" -ForegroundColor 'Red'
                 }
                 Return
@@ -260,7 +257,7 @@ Function Write-Log {
                 [Decimal]$LogFileSizeMB = $LogFile.Length / 1MB
 
                 # Check if log file needs to be rotated
-                if ((!$script:LogFileInitialized -and !$AppendToLogFile) -or ($MaxLogFileSizeMB -gt 0 -and $LogFileSizeMB -gt $MaxLogFileSizeMB)) {
+                if ((!$script:LogFileInitialized -and $CreateNewLog) -or ($MaxLogFileSizeMB -gt 0 -and $LogFileSizeMB -gt $MaxLogFileSizeMB)) {
 
                     # Get new log file path
                     $LogFileNameWithoutExtension = [IO.Path]::GetFileNameWithoutExtension($LogFileName)
@@ -270,7 +267,7 @@ Function Write-Log {
                     [String]$ArchiveLogFilePath = Join-Path -Path $LogFileDirectory -ChildPath $ArchiveLogFileName
 
                     if ($MaxLogFileSizeMB -gt 0 -and $LogFileSizeMB -gt $MaxLogFileSizeMB) {
-                        [Hashtable]$ArchiveLogParams = @{ Source = ${CmdletName}; Severity = 2; LogFileDirectory = $LogFileDirectory; LogFileName = $LogFileName; LogType = $LogType; MaxLogFileSizeMB = 0; AppendToLogFile = $true; WriteHost = $WriteHost; ContinueOnError = $ContinueOnError; PassThru = $false }
+                        [Hashtable]$ArchiveLogParams = @{ Source = ${CmdletName}; Severity = 2; LogFileDirectory = $LogFileDirectory; LogFileName = $LogFileName; LogType = $LogType; MaxLogFileSizeMB = 0; CreateNewLog = $false; WriteHost = $WriteHost; ShowErrors = $ShowErrors; PassThru = $false }
 
                         ## Log message about archiving the log file
                         $ArchiveLogMessage = "Maximum log file size [$MaxLogFileSizeMB MB] reached. Rename log file to [$ArchiveLogFileName]."
@@ -297,7 +294,7 @@ Function Write-Log {
             } Catch {
                 Write-Host -Object "[$LogDate $LogTime] [${CmdletName}] $ScriptSection :: Failed to rotate the log file [$LogFilePath]. `r`n$(Resolve-Error)" -ForegroundColor 'Red'
                 # Treat log rotation errors as non-terminating by default
-                If (-not $ContinueOnError) {
+                If ($ShowErrors) {
                     [Boolean]$ExitLoggingFunction = $true
                     Return
                 }
@@ -374,7 +371,7 @@ Function Write-Log {
                 Try {
                     $LogLine | Out-File -FilePath $LogFilePath -Append -NoClobber -Force -Encoding 'UTF8' -ErrorAction 'Stop' -WhatIf:$false
                 } Catch {
-                    If (-not $ContinueOnError) {
+                    If ($ShowErrors) {
                         Write-Host -Object "[$LogDate $LogTime] [$ScriptSection] [${CmdletName}] :: Failed to write message [$Msg] to the log file [$LogFilePath]. `r`n$(Resolve-Error)" -ForegroundColor 'Red'
                     }
                 }

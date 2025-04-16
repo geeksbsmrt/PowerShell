@@ -72,9 +72,9 @@ Describe 'Write-Log' {
         }
 
         It 'Should create a new log file when AppendToLogFile is $false' {
-            Write-Log -Message 'First entry' -LogFileDirectory $TestLogDirectory -LogFileName $TestLogFileName -AppendToLogFile $false
+            Write-Log -Message 'First entry' -LogFileDirectory $TestLogDirectory -LogFileName $TestLogFileName -CreateNewLog
             $InitialContent = Get-Content -Path $TestLogFilePath
-            Write-Log -Message 'Second entry' -LogFileDirectory $TestLogDirectory -LogFileName $TestLogFileName -AppendToLogFile $false
+            Write-Log -Message 'Second entry' -LogFileDirectory $TestLogDirectory -LogFileName $TestLogFileName -CreateNewLog
             $NewContent = Get-Content -Path $TestLogFilePath
             $NewContent | Should -Not -Be $InitialContent
         }
@@ -109,7 +109,7 @@ Describe 'Write-Log' {
         It 'Should not throw if log directory cannot be created and ContinueOnError is $true' {
             $invalidChars = [System.IO.Path]::GetInvalidFileNameChars() | Where-Object { $_ -ne [char]0 }
             $InvalidDir = [System.IO.Path]::Combine($env:TMPDIR, [System.IO.Path]::GetRandomFileName(), ($invalidChars -join ''))
-            { Write-Log -Message 'Should not throw' -LogFileDirectory $InvalidDir -LogFileName $TestLogFileName -ContinueOnError $true } | Should -Not -Throw
+            { Write-Log -Message 'Should not throw' -LogFileDirectory $InvalidDir -LogFileName $TestLogFileName } | Should -Not -Throw
         }
 
         It 'Should throw if log directory cannot be created and ContinueOnError is $false' {
@@ -197,8 +197,8 @@ Describe 'Write-Log' {
         }
 
         It 'Should append to log file when AppendToLogFile is true' {
-            Write-Log -Message 'First append' -LogFileDirectory $TestLogDirectory -LogFileName $TestLogFileName -AppendToLogFile $true
-            Write-Log -Message 'Second append' -LogFileDirectory $TestLogDirectory -LogFileName $TestLogFileName -AppendToLogFile $true
+            Write-Log -Message 'First append' -LogFileDirectory $TestLogDirectory -LogFileName $TestLogFileName
+            Write-Log -Message 'Second append' -LogFileDirectory $TestLogDirectory -LogFileName $TestLogFileName
             $LogContent = Get-Content -Path $TestLogFilePath
             $LogContent[0] | Should -Match 'First append'
             $LogContent[1] | Should -Match 'Second append'
@@ -211,9 +211,7 @@ Describe 'Write-Log' {
         }
 
         It 'Should fallback to default Source if Source is null or whitespace' {
-            Write-Log -Message 'Null source test' -LogFileDirectory $TestLogDirectory -LogFileName $TestLogFileName -Source ''
-            $LogContent = Get-Content -Path $TestLogFilePath
-            $LogContent | Should -Match 'Null source test'
+            {Write-Log -Message 'Null source test' -LogFileDirectory $TestLogDirectory -LogFileName $TestLogFileName -Source '' }| Should -Throw
         }
 
         It 'Should not log when Message is $null' {
