@@ -1,3 +1,4 @@
+#requires -Version 7
 #region Function Write-Log
 Function Write-Log {
     <#
@@ -95,6 +96,9 @@ Function Write-Log {
         Taken from PSAppDeployToolkit v3.10.2. Modified to remove PSADT dependencies and to work cross-platform.
     #>
     [CmdletBinding()]
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidOverwritingBuiltInCmdlets', '', Justification = 'Write-Log does not exist in any version of PowerShell.')]
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseCompatibleSyntax', '', Justification = 'Requires statement ensures only running in PowerShell 7')]
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'If used in an interactive session, we want data sent back to user.')]
     Param (
         [Parameter(
             Mandatory,
@@ -115,7 +119,7 @@ Function Write-Log {
         [String]$LogType = (Get-Command -Name 'cmtrace.exe' -ErrorAction SilentlyContinue) ? 'CMTrace' : 'Legacy',
         [Parameter()]
         [ValidateNotNullOrWhiteSpace()]
-        [String]$LogFileDirectory,
+        [String]$LogFileDirectory = $IsMacOS ? "${env:TMPDIR}" : $IsLinux ? '/var/tmp' : "${env:Temp}", # If not Mac or Linux, default to Windows
         [Parameter()]
         [ValidateNotNullOrWhiteSpace()]
         [String]$LogFileName = [IO.Path]::GetFileNameWithoutExtension([IO.Path]::GetRandomFileName()),
@@ -142,17 +146,6 @@ Function Write-Log {
     Begin {
         ## Get the name of this function, used only if an error occurs writing to the log file
         [String]${CmdletName} = $PSCmdlet.MyInvocation.MyCommand.Name
-
-        # Set LogFileDir to Temporary directory if not specified
-        $LogFileDirectory ??= {
-            if($IsWindows){
-                $env:TEMP
-            } elseif ($IsMacOS){
-                $env:TMPDIR
-            } elseif ($IsLinux){
-                '/var/tmp'
-            }
-        }
 
         # Ensure we have an extension for the log file name, default to .log
         $LogFileName = (Split-Path $LogFileName -Extension) ? $LogFileName : "${LogFileName}.log"
@@ -385,6 +378,7 @@ Function Write-Log {
         If ($PassThru) {
             Write-Output -InputObject ($Message)
         }
+        Write-Verbose "${LogFileDirectory}\${LogFileName}"
     }
 }
 #endregion

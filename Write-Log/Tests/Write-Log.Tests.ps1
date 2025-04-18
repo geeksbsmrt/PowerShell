@@ -1,3 +1,4 @@
+
 Describe 'Write-Log' {
     BeforeAll {
         # Ensure the module is imported
@@ -6,7 +7,8 @@ Describe 'Write-Log' {
 
     BeforeEach {
         # Mock dependencies and setup test environment
-        $TestLogDirectory = Join-Path -Path $env:TMPDIR -ChildPath 'TestLogs'
+        $tempDir = ($IsMacOS ? "${env:TMPDIR}" : $IsLinux ? '/var/tmp' : "${env:Temp}")
+        $TestLogDirectory = Join-Path -Path $tempDir -ChildPath 'TestLogs'
         $TestLogFileName = 'TestLog.log'
         $TestLogFilePath = Join-Path -Path $TestLogDirectory -ChildPath $TestLogFileName
 
@@ -23,7 +25,6 @@ Describe 'Write-Log' {
             Remove-Item -Path $TestLogDirectory -Recurse -Force
         }
     }
-
     Context 'Parameter validation and edge cases' {
         It 'Should log multiple messages from array input' {
             $Messages = @('First', 'Second', 'Third')
@@ -157,7 +158,7 @@ Describe 'Write-Log' {
         }
 
         It 'Should handle absolute LogFileDirectory path' {
-            $AbsoluteDir = Join-Path -Path $env:TMPDIR -ChildPath 'AbsoluteTestLogs'
+            $AbsoluteDir = Join-Path -Path $tempDir -ChildPath 'AbsoluteTestLogs'
             if (-not (Test-Path $AbsoluteDir)) { New-Item -Path $AbsoluteDir -ItemType Directory | Out-Null }
             Write-Log -Message 'Absolute path test' -LogFileDirectory $AbsoluteDir -LogFileName $TestLogFileName
             Test-Path -Path (Join-Path $AbsoluteDir $TestLogFileName) | Should -BeTrue
