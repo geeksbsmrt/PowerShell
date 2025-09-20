@@ -1,6 +1,6 @@
 #requires -Version 7
 #region Function Write-Log
-Function Write-Log {
+function Write-Log {
     <#
         .SYNOPSIS
 
@@ -99,7 +99,7 @@ Function Write-Log {
     [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidOverwritingBuiltInCmdlets', '', Justification = 'Write-Log does not exist in any version of PowerShell.')]
     [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseCompatibleSyntax', '', Justification = 'Requires statement ensures only running in PowerShell 7')]
     [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'If used in an interactive session, we want data sent back to user.')]
-    Param (
+    param (
         [Parameter(
             Mandatory,
             ValueFromPipeline,
@@ -143,7 +143,7 @@ Function Write-Log {
         [switch]$LogDebugMessage
     )
 
-    Begin {
+    begin {
         ## Get the name of this function, used only if an error occurs writing to the log file
         [String]${CmdletName} = $PSCmdlet.MyInvocation.MyCommand.Name
 
@@ -155,28 +155,28 @@ Function Write-Log {
         [DateTime]$DateTimeNow = Get-Date
         [String]$LogTime = $DateTimeNow.ToString('HH\:mm\:ss.fff')
         [String]$LogDate = $DateTimeNow.ToString('MM-dd-yyyy')
-        If (-not (Test-Path -LiteralPath 'variable:LogTimeZoneBias')) {
+        if (-not (Test-Path -LiteralPath 'variable:LogTimeZoneBias')) {
             [Int32]$script:LogTimeZoneBias = [TimeZone]::CurrentTimeZone.GetUtcOffset($DateTimeNow).TotalMinutes
         }
         [String]$LogTimePlusBias = $LogTime + $script:LogTimeZoneBias
         #  Initialize variables
         [Boolean]$ExitLoggingFunction = $false
-        If (-not (Test-Path -LiteralPath 'variable:DisableLogging')) {
+        if (-not (Test-Path -LiteralPath 'variable:DisableLogging')) {
             $DisableLogging = $false
         }
-        If ([System.String]::IsNullOrWhiteSpace($LogFileName)) {
+        if ([System.String]::IsNullOrWhiteSpace($LogFileName)) {
             $DisableLogging = $true
         }
         #  Get the file name of the source script
-        $ScriptSource = If (![System.String]::IsNullOrWhiteSpace($script:MyInvocation.ScriptName)) {
+        $ScriptSource = if (![System.String]::IsNullOrWhiteSpace($script:MyInvocation.ScriptName)) {
             Split-Path -Path $script:MyInvocation.ScriptName -Leaf -ErrorAction SilentlyContinue
-        } Else {
+        } else {
             Split-Path -Path $script:MyInvocation.MyCommand.Definition -Leaf -ErrorAction SilentlyContinue
         }
 
         ## Create script block for generating CMTrace.exe compatible log entry
         [ScriptBlock]$CMTraceLogString = {
-            Param (
+            param (
                 [String]$lMessage,
                 [String]$lSource,
                 [Int16]$lSeverity
@@ -186,14 +186,14 @@ Function Write-Log {
 
         ## Create script block for writing log entry to the console
         [ScriptBlock]$WriteLogLineToHost = {
-            Param (
+            param (
                 [String]$lTextLogLine,
                 [Int16]$lSeverity
             )
-            If ($WriteHost) {
+            if ($WriteHost) {
                 #  Only output using color options if running in a host which supports colors.
-                If ($Host.UI.RawUI.ForegroundColor) {
-                    Switch ($lSeverity) {
+                if ($Host.UI.RawUI.ForegroundColor) {
+                    switch ($lSeverity) {
                         3 {
                             Write-Host -Object $lTextLogLine -ForegroundColor 'Red' -BackgroundColor 'Black'
                         }
@@ -209,35 +209,35 @@ Function Write-Log {
                     }
                 }
                 #  If executing "powershell.exe -File <filename>.ps1 > log.txt", then all the Write-Host calls are converted to Write-Output calls so that they are included in the text log.
-                Else {
+                else {
                     Write-Output -InputObject ($lTextLogLine)
                 }
             }
         }
 
         ## Exit function if it is a debug message and logging debug messages is not enabled in the config XML file
-        If (($DebugMessage) -and (-not $LogDebugMessage)) {
-            [Boolean]$ExitLoggingFunction = $true; Return
+        if (($DebugMessage) -and (-not $LogDebugMessage)) {
+            [Boolean]$ExitLoggingFunction = $true; return
         }
         ## Exit function if logging to file is disabled and logging to console host is disabled
-        If (($DisableLogging) -and (-not $WriteHost)) {
-            [Boolean]$ExitLoggingFunction = $true; Return
+        if (($DisableLogging) -and (-not $WriteHost)) {
+            [Boolean]$ExitLoggingFunction = $true; return
         }
         ## Exit Begin block if logging is disabled
-        If ($DisableLogging) {
-            Return
+        if ($DisableLogging) {
+            return
         }
         ## Create the directory where the log file will be saved
-        If (-not (Test-Path -LiteralPath $LogFileDirectory -PathType 'Container')) {
-            Try {
+        if (-not (Test-Path -LiteralPath $LogFileDirectory -PathType 'Container')) {
+            try {
                 $null = New-Item -Path $LogFileDirectory -Type 'Directory' -Force -ErrorAction 'Stop'
-            } Catch {
+            } catch {
                 [Boolean]$ExitLoggingFunction = $true
                 #  If error creating directory, write message to console
-                If ($ShowErrors) {
+                if ($ShowErrors) {
                     Write-Host -Object "[$LogDate $LogTime] [${CmdletName}] :: Failed to create the log directory [$LogFileDirectory]." -ForegroundColor 'Red'
                 }
-                Return
+                return
             }
         }
 
@@ -245,7 +245,7 @@ Function Write-Log {
         [String]$LogFilePath = Join-Path -Path $LogFileDirectory -ChildPath $LogFileName
 
         if (Test-Path -Path $LogFilePath -PathType Leaf) {
-            Try {
+            try {
                 $LogFile = Get-Item $LogFilePath
                 [Decimal]$LogFileSizeMB = $LogFile.Length / 1MB
 
@@ -284,39 +284,39 @@ Function Write-Log {
                         $LogFiles | Select-Object -First ($LogFiles.Count - $MaxLogHistory) | Remove-Item -ErrorAction 'Stop'
                     }
                 }
-            } Catch {
+            } catch {
                 Write-Host -Object "[$LogDate $LogTime] [${CmdletName}] :: Failed to rotate the log file [$LogFilePath]." -ForegroundColor 'Red'
                 # Treat log rotation errors as non-terminating by default
-                If ($ShowErrors) {
+                if ($ShowErrors) {
                     [Boolean]$ExitLoggingFunction = $true
-                    Return
+                    return
                 }
             }
         }
 
         $script:LogFileInitialized = $true
     }
-    Process {
+    process {
         ## Exit function if logging is disabled
-        If ($ExitLoggingFunction) {
-            Return
+        if ($ExitLoggingFunction) {
+            return
         }
 
-        ForEach ($Msg in $Message) {
+        foreach ($Msg in $Message) {
             ## If the message is not $null or empty, create the log entry for the different logging methods
             [String]$CMTraceMsg = ''
             [String]$ConsoleLogLine = ''
             [String]$LegacyTextLogLine = ''
-            If ($Msg) {
+            if ($Msg) {
                 #  Create the CMTrace log message
                 [String]$CMTraceMsg = "$Msg"
 
                 #  Create a Console and Legacy "text" log entry
                 [String]$LegacyMsg = "[$LogDate $LogTime]"
 
-                If ($Source) {
+                if ($Source) {
                     [String]$ConsoleLogLine = "$LegacyMsg [$Source] :: $Msg"
-                    Switch ($Severity) {
+                    switch ($Severity) {
                         3 {
                             [String]$LegacyTextLogLine = "$LegacyMsg [$Source] [Error] :: $Msg"
                         }
@@ -330,9 +330,9 @@ Function Write-Log {
                             [String]$LegacyTextLogLine = "$LegacyMsg [$Source] [Success] :: $Msg"
                         }
                     }
-                } Else {
+                } else {
                     [String]$ConsoleLogLine = "$LegacyMsg :: $Msg"
-                    Switch ($Severity) {
+                    switch ($Severity) {
                         3 {
                             [String]$LegacyTextLogLine = "$LegacyMsg [Error] :: $Msg"
                         }
@@ -353,18 +353,18 @@ Function Write-Log {
             [String]$CMTraceLogLine = & $CMTraceLogString -lMessage $CMTraceMsg -lSource $Source -lSeverity $Severity
 
             ## Choose which log type to write to file
-            If ($LogType -ieq 'CMTrace') {
+            if ($LogType -ieq 'CMTrace') {
                 [String]$LogLine = $CMTraceLogLine
-            } Else {
+            } else {
                 [String]$LogLine = $LegacyTextLogLine
             }
 
             ## Write the log entry to the log file if logging is not currently disabled
-            If (-not $DisableLogging) {
-                Try {
+            if (-not $DisableLogging) {
+                try {
                     $LogLine | Out-File -FilePath $LogFilePath -Append -NoClobber -Force -Encoding 'UTF8' -ErrorAction 'Stop' -WhatIf:$false
-                } Catch {
-                    If ($ShowErrors) {
+                } catch {
+                    if ($ShowErrors) {
                         Write-Host -Object "[$LogDate $LogTime] [${CmdletName}] :: Failed to write message [$Msg] to the log file [$LogFilePath]." -ForegroundColor 'Red'
                     }
                 }
@@ -374,8 +374,8 @@ Function Write-Log {
             & $WriteLogLineToHost -lTextLogLine $ConsoleLogLine -lSeverity $Severity
         }
     }
-    End {
-        If ($PassThru) {
+    end {
+        if ($PassThru) {
             Write-Output -InputObject ($Message)
         }
         Write-Verbose "${LogFileDirectory}\${LogFileName}"
