@@ -235,7 +235,7 @@ Function Write-Log {
                 [Boolean]$ExitLoggingFunction = $true
                 #  If error creating directory, write message to console
                 If ($ShowErrors) {
-                    Write-Host -Object "[$LogDate $LogTime] [${CmdletName}] $ScriptSection :: Failed to create the log directory [$LogFileDirectory]. `r`n$(Resolve-Error)" -ForegroundColor 'Red'
+                    Write-Host -Object "[$LogDate $LogTime] [${CmdletName}] :: Failed to create the log directory [$LogFileDirectory]." -ForegroundColor 'Red'
                 }
                 Return
             }
@@ -285,7 +285,7 @@ Function Write-Log {
                     }
                 }
             } Catch {
-                Write-Host -Object "[$LogDate $LogTime] [${CmdletName}] $ScriptSection :: Failed to rotate the log file [$LogFilePath]. `r`n$(Resolve-Error)" -ForegroundColor 'Red'
+                Write-Host -Object "[$LogDate $LogTime] [${CmdletName}] :: Failed to rotate the log file [$LogFilePath]." -ForegroundColor 'Red'
                 # Treat log rotation errors as non-terminating by default
                 If ($ShowErrors) {
                     [Boolean]$ExitLoggingFunction = $true
@@ -365,7 +365,7 @@ Function Write-Log {
                     $LogLine | Out-File -FilePath $LogFilePath -Append -NoClobber -Force -Encoding 'UTF8' -ErrorAction 'Stop' -WhatIf:$false
                 } Catch {
                     If ($ShowErrors) {
-                        Write-Host -Object "[$LogDate $LogTime] [$ScriptSection] [${CmdletName}] :: Failed to write message [$Msg] to the log file [$LogFilePath]. `r`n$(Resolve-Error)" -ForegroundColor 'Red'
+                        Write-Host -Object "[$LogDate $LogTime] [${CmdletName}] :: Failed to write message [$Msg] to the log file [$LogFilePath]." -ForegroundColor 'Red'
                     }
                 }
             }
