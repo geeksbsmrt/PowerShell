@@ -126,11 +126,11 @@ function Write-Log {
         [Parameter()]
         [switch]$CreateNewLog,
         [Parameter()]
-        [ValidateNotNullOrWhiteSpace()]
+        [ValidateRange(0, [int]::MaxValue)]
         [Int]$MaxLogHistory = 5,
         [Parameter()]
-        [ValidateNotNullOrWhiteSpace()]
-        [Decimal]$MaxLogFileSizeMB = 10.0,
+        [ValidateRange(0, [int]::MaxValue)]
+        [int]$MaxLogFileSizeMB = 10,
         [Parameter()]
         [switch]$ShowErrors,
         [Parameter()]
